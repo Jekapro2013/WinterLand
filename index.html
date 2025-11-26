@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Winter Land - CS 1.6 Сервер</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0a0e17 0%, #1a2839 50%, #0f1a29 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        #snow-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .snowflake {
+            position: absolute;
+            top: -10px;
+            color: #a0c8ff;
+            font-size: 1.2rem;
+            user-select: none;
+            opacity: 0.7;
+            animation-name: fall;
+            animation-timing-function: linear;
+            animation-iteration-count: infinite;
+        }
+
+        @keyframes fall {
+            0% {
+                transform: translateY(0) translateX(0) rotate(0deg);
+                opacity: 0.7;
+            }
+            100% {
+                transform: translateY(100vh) translateX(20px) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        /* Стили для уведомлений */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 20px 25px;
+            border-radius: 10px;
+            color: white;
+            font-weight: 600;
+            z-index: 1000;
+            transform: translateX(400px);
+            transition: transform 0.4s ease;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            max-width: 350px;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification.success {
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+            border-left: 5px solid #27ae60;
+        }
+
+        .notification.error {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            border-left: 5px solid #c0392b;
+        }
+
+        .notification.info {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            border-left: 5px solid #2980b9;
+        }
+
+        .notification.warning {
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+            border-left: 5px solid #e67e22;
+        }
+
+        header {
+            background-color: rgba(8, 20, 35, 0.95);
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            border-bottom: 2px solid #2a4d6e;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo-icon {
+            font-size: 2.5rem;
+            color: #4a90e2;
+            text-shadow: 0 0 10px rgba(74, 144, 226, 0.5);
+        }
+
+        .logo h1 {
+            font-size: 1.8rem;
+            background: linear-gradient(90deg, #4a90e2, #6bb5ff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 0 0 10px rgba(74, 144, 226, 0.3);
+        }
+
+        nav ul {
+            display: flex;
+            list-style: none;
+            gap: 25px;
+        }
+
+        nav a {
+            color: #b0b0b0;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            padding: 8px 12px;
+            border-radius: 5px;
+        }
+
+        nav a:hover {
+            color: #4a90e2;
+            background-color: rgba(74, 144, 226, 0.1);
+        }
+
+        .hero {
+            padding: 80px 0;
+            text-align: center;
+            background: radial-gradient(circle at center, rgba(74, 144, 226, 0.1) 0%, transparent 70%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><path fill="%234a90e2" opacity="0.05" d="M0 0h100v100H0z"/><path fill="%234a90e2" opacity="0.03" d="M20 20h60v60H20z"/></svg>');
+            z-index: -1;
+        }
+
+        .hero h2 {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            background: linear-gradient(90deg, #4a90e2, #6bb5ff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .hero p {
+            font-size: 1.2rem;
+            max-width: 700px;
+            margin: 0 auto 40px;
+            color: #b0b0b0;
+            line-height: 1.6;
+        }
+
+        .server-info {
+            background-color: rgba(15, 30, 45, 0.7);
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 600px;
+            margin: 0 auto 30px;
+            border: 1px solid #2a4d6e;
+        }
+
+        .server-info h3 {
+            color: #4a90e2;
+            margin-bottom: 15px;
+        }
+
+        .server-details {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .server-detail {
+            text-align: center;
+        }
+
+        .server-detail .value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #4a90e2;
+        }
+
+        .server-detail .label {
+            font-size: 0.9rem;
+            color: #b0b0b0;
+        }
+
+        .connect-info {
+            background: linear-gradient(135deg, rgba(46, 204, 113, 0.1) 0%, rgba(39, 174, 96, 0.05) 100%);
+            padding: 25px;
+            border-radius: 10px;
+            max-width: 600px;
+            margin: 0 auto 30px;
+            border: 1px solid rgba(46, 204, 113, 0.3);
+        }
+
+        .connect-info h3 {
+            color: #2ecc71;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .ip-address {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            text-align: center;
+            border: 1px solid rgba(46, 204, 113, 0.5);
+        }
+
+        .ip-address .ip {
+            font-family: 'Courier New', monospace;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #2ecc71;
+            letter-spacing: 2px;
+        }
+
+        .connect-steps {
+            text-align: left;
+            margin-top: 20px;
+        }
+
+        .connect-steps h4 {
+            color: #4a90e2;
+            margin-bottom: 10px;
+        }
+
+        .connect-steps ol {
+            padding-left: 20px;
+            color: #b0b0b0;
+            line-height: 1.6;
+        }
+
+        .connect-steps li {
+            margin-bottom: 8px;
+        }
+
+        .vip-info {
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.1) 0%, rgba(255, 215, 0, 0.05) 100%);
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 600px;
+            margin: 0 auto 30px;
+            border: 1px solid rgba(255, 215, 0, 0.3);
+        }
+
+        .vip-info h3 {
+            color: #ffd700;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .vip-info p {
+            color: #b0b0b0;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        .vip-btn {
+            background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+            color: #333;
+            font-weight: bold;
+        }
+
+        .vip-btn:hover {
+            background: linear-gradient(135deg, #ffd700 0%, #fff176 100%);
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 14px 32px;
+            background: linear-gradient(135deg, #2a4d6e 0%, #4a90e2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(42, 77, 110, 0.4);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(42, 77, 110, 0.6);
+            background: linear-gradient(135deg, #2a4d6e 0%, #5ba1ff 100%);
+        }
+
+        .btn:active {
+            transform: translateY(1px);
+            box-shadow: 0 2px 10px rgba(42, 77, 110, 0.4);
+        }
+
+        .btn::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 5px;
+            height: 5px;
+            background: rgba(255, 255, 255, 0.5);
+            opacity: 0;
+            border-radius: 100%;
+            transform: scale(1, 1) translate(-50%);
+            transform-origin: 50% 50%;
+        }
+
+        .btn:focus:not(:active)::after {
+            animation: ripple 1s ease-out;
+        }
+
+        @keyframes ripple {
+            0% {
+                transform: scale(0, 0);
+                opacity: 0.5;
+            }
+            100% {
+                transform: scale(20, 20);
+                opacity: 0;
+            }
+        }
+
+        .registration-section {
+            padding: 80px 0;
+            background-color: rgba(12, 25, 40, 0.7);
+        }
+
+        .section-title {
+            text-align: center;
+            margin-bottom: 50px;
+            font-size: 2.2rem;
+            color: #e0e0e0;
+        }
+
+        .section-title span {
+            color: #4a90e2;
+        }
+
+        .form-container {
+            max-width: 500px;
+            margin: 0 auto;
+            background-color: rgba(18, 35, 55, 0.9);
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(74, 144, 226, 0.3);
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #b0b0b0;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 14px;
+            background-color: rgba(30, 50, 70, 0.8);
+            border: 1px solid rgba(74, 144, 226, 0.3);
+            border-radius: 8px;
+            color: #e0e0e0;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #4a90e2;
+            box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.2);
+        }
+
+        .submit-btn {
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .features {
+            padding: 80px 0;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+        }
+
+        .feature-card {
+            background-color: rgba(18, 35, 55, 0.8);
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            transition: transform 0.3s ease;
+            border: 1px solid rgba(74, 144, 226, 0.2);
+        }
+
+        .feature-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            color: #4a90e2;
+        }
+
+        .feature-card h3 {
+            margin-bottom: 15px;
+            color: #e0e0e0;
+        }
+
+        .feature-card p {
+            color: #b0b0b0;
+            line-height: 1.6;
+        }
+
+        .tournament-notice {
+            background: linear-gradient(135deg, rgba(42, 77, 110, 0.3) 0%, rgba(74, 144, 226, 0.2) 100%);
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            margin-top: 40px;
+            border: 1px solid rgba(74, 144, 226, 0.3);
+        }
+
+        .tournament-notice h3 {
+            color: #4a90e2;
+            margin-bottom: 15px;
+        }
+
+        .tournament-notice p {
+            color: #b0b0b0;
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        /* Стили для донат секции */
+        .donate-section {
+            padding: 80px 0;
+            background-color: rgba(15, 40, 25, 0.7);
+        }
+
+        .donate-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: linear-gradient(135deg, #1e3c2a, #2d5a3d);
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(46, 204, 113, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .donate-title {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #2ecc71;
+            font-size: 2rem;
+        }
+
+        .donate-goal {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 1.2rem;
+        }
+
+        .donate-goal .amount {
+            font-weight: bold;
+            color: #2ecc71;
+            font-size: 1.4rem;
+        }
+
+        .progress-container {
+            background-color: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            height: 30px;
+            margin-bottom: 30px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #f39c12, #e67e22);
+            border-radius: 10px;
+            width: 0%;
+            transition: width 0.5s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-text {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+
+        .donate-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .donate-btn {
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 10px rgba(46, 204, 113, 0.4);
+        }
+
+        .donate-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(46, 204, 113, 0.6);
+        }
+
+        .donate-btn:active {
+            transform: translateY(1px);
+        }
+
+        .money-animation {
+            position: absolute;
+            font-size: 1.5rem;
+            opacity: 0;
+            z-index: 10;
+        }
+
+        @keyframes moneyFall {
+            0% {
+                transform: translateY(-20px) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100px) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        footer {
+            background-color: rgba(8, 20, 35, 0.9);
+            padding: 40px 0;
+            margin-top: auto;
+            border-top: 2px solid #2a4d6e;
+        }
+
+        .footer-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 20px;
+        }
+
+        .footer-links a {
+            color: #b0b0b0;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .footer-links a:hover {
+            color: #4a90e2;
+        }
+
+        .copyright {
+            color: #777;
+            font-size: 0.9rem;
+        }
+
+        .cs-icon {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            background-color: #4a90e2;
+            border-radius: 4px;
+            position: relative;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        .cs-icon::before {
+            content: "CS";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 12px;
+            font-weight: bold;
+            color: white;
+        }
+
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 20px;
+            }
+            
+            nav ul {
+                gap: 15px;
+            }
+            
+            .hero h2 {
+                font-size: 2.2rem;
+            }
+            
+            .footer-content {
+                flex-direction: column;
+                gap: 20px;
+                text-align: center;
+            }
+            
+            .server-details {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .donate-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .donate-btn {
+                width: 100%;
+                max-width: 200px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="snow-container"></div>
+    <div id="notification-container"></div>
+    
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <div class="logo-icon">❄️</div>
+                    <h1>Winter Land</h1>
+                </div>
+                <nav>
+                    <ul>
+                        <li><a href="#">Главная</a></li>
+                        <li><a href="#connect">Подключиться</a></li>
+                        <li><a href="#registration">Регистрация</a></li>
+                        <li><a href="#donate">Донат</a></li>
+                        <li><a href="#">Правила</a></li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <section class="hero">
+        <div class="container">
+            <h2>Winter Land - CS 1.6 Сервер</h2>
+            <p>Новый сервер Counter-Strike 1.6 с уникальной атмосферой и комьюнити. Присоединяйся к нам и стань частью возрождения классики!</p>
+            
+            <div class="server-info">
+                <h3>Информация о сервере</h3>
+                <div class="server-details">
+                    <div class="server-detail">
+                        <div class="value">24/7</div>
+                        <div class="label">Работа сервера</div>
+                    </div>
+                    <div class="server-detail">
+                        <div class="value">de_dust2</div>
+                        <div class="label">Основная карта</div>
+                    </div>
+                    <div class="server-detail">
+                        <div class="value">32</div>
+                        <div class="label">Слотов</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="connect-info" id="connect">
+                <h3>🔗 Как подключиться к серверу</h3>
+                <div class="ip-address">
+                    <div class="ip">91.211.118.49:27034</div>
+                    <div class="label">IP-адрес сервера</div>
+                </div>
+                <div class="connect-steps">
+                    <h4>Инструкция по подключению:</h4>
+                    <ol>
+                        <li>Запустите Counter-Strike 1.6</li>
+                        <li>Нажмите кнопку "Find Servers"</li>
+                        <li>Перейдите на вкладку "Favorites"</li>
+                        <li>Нажмите "Add Server"</li>
+                        <li>Введите IP-адрес: <strong>91.211.118.49:27034</strong></li>
+                        <li>Нажмите "OK" и затем "Connect"</li>
+                    </ol>
+                </div>
+            </div>
+            
+            <div class="vip-info">
+                <h3>🌟 VIP Статус</h3>
+                <p>Получите VIP-статус для особых привилегий на сервере! Приоритетный вход, специальные модели игроков и уникальные возможности.</p>
+                <p><strong>Цена: Уточняется</strong></p>
+                <button class="btn vip-btn" id="vip-info-btn">Узнать о VIP</button>
+            </div>
+            
+            <button class="btn" id="scrollToRegistration">Зарегистрироваться на сайте</button>
+        </div>
+    </section>
+
+    <section class="registration-section" id="registration">
+        <div class="container">
+            <h2 class="section-title">Регистрация на <span>Winter Land</span></h2>
+            <div class="form-container">
+                <form id="registrationForm">
+                    <div class="form-group">
+                        <label for="nickname"><span class="cs-icon"></span>Игровой никнейм</label>
+                        <input type="text" id="nickname" class="form-control" placeholder="Введите ваш игровой никнейм из CS 1.6" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Пароль</label>
+                        <input type="password" id="password" class="form-control" placeholder="Создайте надежный пароль" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="confirm-password">Подтверждение пароля</label>
+                        <input type="password" id="confirm-password" class="form-control" placeholder="Повторите пароль" required>
+                    </div>
+                    <button type="submit" class="btn submit-btn">Создать аккаунт</button>
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <section class="donate-section" id="donate">
+        <div class="container">
+            <h2 class="section-title">Поддержать проект</h2>
+            <div class="donate-container" id="donate-container">
+                <h3 class="donate-title">💝 Поддержать Winter Land</h3>
+                <div class="donate-goal">
+                    Цель: <span class="amount" id="current-amount">0</span> / <span class="amount">300</span> грн
+                </div>
+                <div class="progress-container">
+                    <div class="progress-bar" id="progress-bar">
+                        <div class="progress-text" id="progress-text">0%</div>
+                    </div>
+                </div>
+                <div class="donate-buttons">
+                    <button class="donate-btn" data-amount="10">10 грн</button>
+                    <button class="donate-btn" data-amount="20">20 грн</button>
+                    <button class="donate-btn" data-amount="50">50 грн</button>
+                    <button class="donate-btn" data-amount="100">100 грн</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="features">
+        <div class="container">
+            <h2 class="section-title">Почему стоит играть у нас?</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
+                    <h3>Стабильный сервер</h3>
+                    <p>Наш сервер работает 24/7 с минимальным пингом и без лагов, обеспечивая комфортную игру для всех участников.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">👮</div>
+                    <h3>Чистая игра</h3>
+                    <p>Античит и активные администраторы следят за честностью игры, обеспечивая равные условия для всех игроков.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🌐</div>
+                    <h3>Активное комьюнити</h3>
+                    <p>Присоединяйтесь к растущему сообществу фанатов CS 1.6, находите напарников и создавайте команды.</p>
+                </div>
+            </div>
+            
+            <div class="tournament-notice">
+                <h3>Планы на будущее</h3>
+                <p>Мы только начинаем наш путь! Как только наберется достаточное количество активных игроков, мы запустим регулярные турниры с призовыми фондами. Присоединяйтесь сейчас и станьте частью истории возрождения CS 1.6!</p>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="logo">
+                    <div class="logo-icon">❄️</div>
+                    <h1>Winter Land</h1>
+                </div>
+                <div class="footer-links">
+                    <a href="#">Правила сервера</a>
+                    <a href="#">Контакты</a>
+                    <a href="#">Поддержка</a>
+                </div>
+                <div class="copyright">
+                    &copy; 2025 Winter Land CS 1.6 Server. Все права защищены.
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Создание снежинок
+        function createSnowflakes() {
+            const snowContainer = document.getElementById('snow-container');
+            const snowflakeCount = 50;
+            
+            for (let i = 0; i < snowflakeCount; i++) {
+                const snowflake = document.createElement('div');
+                snowflake.classList.add('snowflake');
+                snowflake.innerHTML = '❄';
+                
+                // Случайные параметры для снежинок
+                const size = Math.random() * 1.5 + 0.5;
+                const left = Math.random() * 100;
+                const animationDuration = Math.random() * 10 + 10;
+                const animationDelay = Math.random() * 5;
+                
+                snowflake.style.left = `${left}vw`;
+                snowflake.style.fontSize = `${size}rem`;
+                snowflake.style.animationDuration = `${animationDuration}s`;
+                snowflake.style.animationDelay = `${animationDelay}s`;
+                
+                snowContainer.appendChild(snowflake);
+            }
+        }
+        
+        // Функция для показа уведомлений
+        function showNotification(message, type = 'info') {
+            const notificationContainer = document.getElementById('notification-container');
+            const notification = document.createElement('div');
+            notification.classList.add('notification', type);
+            notification.textContent = message;
+            
+            notificationContainer.appendChild(notification);
+            
+            // Показываем уведомление
+            setTimeout(() => {
+                notification.classList.add('show');
+            }, 100);
+            
+            // Убираем уведомление через 5 секунд
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => {
+                    notificationContainer.removeChild(notification);
+                }, 400);
+            }, 5000);
+        }
+        
+        // Система донатов
+        let currentAmount = 0;
+        const goalAmount = 300;
+        
+        function updateDonationProgress() {
+            const progressBar = document.getElementById('progress-bar');
+            const progressText = document.getElementById('progress-text');
+            const currentAmountElement = document.getElementById('current-amount');
+            
+            const percentage = Math.min((currentAmount / goalAmount) * 100, 100);
+            
+            progressBar.style.width = `${percentage}%`;
+            progressText.textContent = `${Math.round(percentage)}%`;
+            currentAmountElement.textContent = `${currentAmount} грн`;
+        }
+        
+        function createMoneyAnimation(amount) {
+            const container = document.getElementById('donate-container');
+            const money = document.createElement('div');
+            money.classList.add('money-animation');
+            
+            // Выбираем случайную иконку денег
+            const moneyIcons = ['💰', '💵', '💶', '💷', '💴', '💸'];
+            const randomIcon = moneyIcons[Math.floor(Math.random() * moneyIcons.length)];
+            
+            money.textContent = randomIcon;
+            money.style.left = `${Math.random() * 80 + 10}%`;
+            money.style.animation = `moneyFall ${Math.random() * 2 + 1}s ease-in forwards`;
+            
+            container.appendChild(money);
+            
+            // Удаляем элемент после анимации
+            setTimeout(() => {
+                container.removeChild(money);
+            }, 2000);
+        }
+        
+        function donate(amount) {
+            currentAmount += amount;
+            updateDonationProgress();
+            
+            // Создаем несколько анимаций денег
+            for (let i = 0; i < 5; i++) {
+                setTimeout(() => createMoneyAnimation(), i * 200);
+            }
+            
+            showNotification(`Спасибо за донат ${amount} грн!`, 'success');
+            
+            // Если достигли цели
+            if (currentAmount >= goalAmount) {
+                showNotification('Ура! Мы достигли цели по сбору средств!', 'success');
+            }
+        }
+        
+        // Запуск создания снежинок после загрузки страницы
+        window.addEventListener('load', createSnowflakes);
+
+        // Плавная прокрутка к форме регистрации
+        document.getElementById('scrollToRegistration').addEventListener('click', function() {
+            document.getElementById('registration').scrollIntoView({ 
+                behavior: 'smooth' 
+            });
+        });
+
+        // Обработка формы регистрации
+        document.getElementById('registrationForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const nickname = document.getElementById('nickname').value;
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirm-password').value;
+            
+            // Простая валидация
+            if (password !== confirmPassword) {
+                showNotification('Пароли не совпадают!', 'error');
+                return;
+            }
+            
+            if (password.length < 6) {
+                showNotification('Пароль должен содержать не менее 6 символов!', 'error');
+                return;
+            }
+            
+            if (nickname.length < 3) {
+                showNotification('Никнейм должен содержать не менее 3 символов!', 'error');
+                return;
+            }
+            
+            // В реальном приложении здесь был бы AJAX-запрос к серверу
+            showNotification(`Регистрация успешна! Добро пожаловать, ${nickname}!`, 'success');
+            
+            // Очистка формы
+            document.getElementById('registrationForm').reset();
+        });
+
+        // Обработка кнопки VIP
+        document.getElementById('vip-info-btn').addEventListener('click', function() {
+            showNotification('Информация о VIP отправлена в личные сообщения!', 'info');
+        });
+
+        // Обработка кнопок доната
+        document.querySelectorAll('.donate-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const amount = parseInt(this.getAttribute('data-amount'));
+                donate(amount);
+            });
+        });
+
+        // Анимация кнопок при клике
+        const buttons = document.querySelectorAll('.btn');
+        buttons.forEach(button => {
+            button.addEventListener('click', function() {
+                this.classList.add('clicked');
+                setTimeout(() => {
+                    this.classList.remove('clicked');
+                }, 300);
+            });
+        });
+
+        // Копирование IP-адреса при клике
+        document.querySelector('.ip-address').addEventListener('click', function() {
+            const ip = '91.211.118.49:27034';
+            navigator.clipboard.writeText(ip).then(() => {
+                showNotification('IP-адрес скопирован в буфер обмена!', 'success');
+            });
+        });
+    </script>
+</body>
+</html>
